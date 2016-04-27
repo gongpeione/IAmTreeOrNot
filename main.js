@@ -7,13 +7,17 @@
 
     class DragUpload {
 
+
+
         constructor(param) {
             this.wrap = $(param.wrap);
             this.upload = $('#upload', this.wrap);
             this.process = $('#upload-list', this.wrap);
-            log(this.wrap);
-            log(this.upload);
-            log(this.process);
+            this.imgCounter = 0;
+
+            /*let local = localStorage.getItem('list') || '';
+
+            this.process.innerHTML = local;*/
 
             this.init();
         }
@@ -22,39 +26,54 @@
 
             let self = this,
                 files,
+                uploadBtn = $('.upload-btn', self.upload);
+
+            self.upload.addEventListener('drop', (event) => {
+
+                event.preventDefault();
+
+                files = event.dataTransfer.files;
+
+                self.handle(files);
+            });
+
+            uploadBtn.addEventListener('change', (event) => {
+                self.handle(uploadBtn.files);
+            });
+        }
+
+        handle(files) {
+
+            let self = this,
                 file,
                 img,
                 name,
                 size,
                 li,
-                html;
+                html,
+                formData,
+                xhr;
 
-            log(self.upload);
-            self.upload.addEventListener('drop', (event) => {
+            if(!files || !files.length) return;
 
-                event.preventDefault();
+            file = files[0];
 
-                log(event);
+            if(file.type.indexOf('image') < 0) {
+                alert('File is not an image');
+                return;
+            }
 
-                files = event.dataTransfer.files;
+            img = window.URL.createObjectURL(files[0]);
+            name = file.name;
+            size = Math.floor(file.size / 1024);
+            size = size > 1024 ? (size / 1024).toFixed(2) + ' MB' : size + ' KB';
 
-                if(!files.length) return;
+            let id = 'pic-' + self.imgCounter++
+            li = document.createElement('li');
+            li.id = id;
 
-                file = files[0];
-
-                if(file.type.indexOf('image') < 0) {
-                    alert('File is not an image');
-                    return;
-                }
-
-                img = window.URL.createObjectURL(files[0]);
-                name = file.name;
-                size = Math.floor(file.size / 1024);
-
-                li = document.createElement('li');
-
-                html = `
-                <div class="img-cover" style="background-image: url('${img}')">
+            html = `
+                <div class="img-cover loading" style="background-image: url('${img}')">
                     <div class="info">
                         <header>
                             <h3>${name}</h3>
@@ -62,18 +81,62 @@
                         </header>
                         <div class="link">
                             <div>
-                                <label for="thumb">Thumb: <input type="text" id="thumb"></label>
+                                <label class="thumb-label">Thumb</label><input type="text" class="thumb">
                             </div>
                             <div>
-                                <label for="large">Large: <input type="text" id="large"></label>
+                                <label class="large-label">Large</label><input type="text" class="large">
                             </div>
                         </div>
                     </div>
                 </div>`;
 
-                li.innerHTML = html;
+            li.innerHTML = html;
 
-                self.process.appendChild(li);
+            self.process.appendChild(li);
+
+            formData = new FormData();
+            formData.append('pic', file);
+
+            new Promise((resolve, reject) => {
+
+                xhr = new XMLHttpRequest();
+                xhr.open('post', 'u/upload.php', true);
+                xhr.send(formData);
+
+                xhr.onreadystatechange = () => {
+                    if(xhr.readyState == 4) {
+                        if((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
+                            resolve(JSON.parse(xhr.responseText));
+                        }
+                    }
+                };
+
+            }).then((data) => {
+
+                if(data.status) {
+                    let className = $('#' + id + ' .img-cover', self.process).className,
+                        thumb = $('#' + id + ' .thumb', self.process),
+                        large = $('#' + id + ' .large', self.process),
+                        thumbLabel = $('#' + id + ' .thumb-label', self.process),
+                        largeLabel = $('#' + id + ' .large-label', self.process);
+
+                    $('#' + id + ' .img-cover', self.process).className =className.replace('loading', '');
+                    thumb.value = data.thumb;
+                    large.value = data.large;
+
+                    thumbLabel.addEventListener('click', () => {
+                        window.open(data.thumb);
+                    });
+
+                    largeLabel.addEventListener('click', () => {
+                        window.open(data.large);
+                    });
+
+                    //localStorage.setItem('list', self.process.innerHTML);
+
+                } else {
+                    alert(data.msg);
+                }
             });
         }
     }
