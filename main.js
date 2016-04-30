@@ -52,27 +52,32 @@
                 li,
                 html,
                 formData,
-                xhr;
+                xhr,
+                i;
 
             if(!files || !files.length) return;
 
             file = files[0];
 
-            if(file.type.indexOf('image') < 0) {
-                alert('File is not an image');
-                return;
-            }
+            for (i = 0; i < files.length; i++) {
 
-            img = window.URL.createObjectURL(files[0]);
-            name = file.name;
-            size = Math.floor(file.size / 1024);
-            size = size > 1024 ? (size / 1024).toFixed(2) + ' MB' : size + ' KB';
+                file = files[i];
 
-            let id = 'pic-' + self.imgCounter++
-            li = document.createElement('li');
-            li.id = id;
+                if(file.type.indexOf('image') < 0) {
+                    alert('File is not an image');
+                    return;
+                }
 
-            html = `
+                img = window.URL.createObjectURL(file);
+                name = file.name;
+                size = Math.floor(file.size / 1024);
+                size = size > 1024 ? (size / 1024).toFixed(2) + ' MB' : size + ' KB';
+
+                let id = 'pic-' + self.imgCounter++
+                li = document.createElement('li');
+                li.id = id;
+
+                html = `
                 <div class="img-cover loading" style="background-image: url('${img}')">
                     <div class="info">
                         <header>
@@ -90,54 +95,57 @@
                     </div>
                 </div>`;
 
-            li.innerHTML = html;
+                li.innerHTML = html;
 
-            self.process.appendChild(li);
+                self.process.appendChild(li);
 
-            formData = new FormData();
-            formData.append('pic', file);
+                formData = new FormData();
+                formData.append('pic', file);
 
-            new Promise((resolve, reject) => {
+                new Promise((resolve, reject) => {
 
-                xhr = new XMLHttpRequest();
-                xhr.open('post', 'u/upload.php', true);
-                xhr.send(formData);
+                    xhr = new XMLHttpRequest();
+                    xhr.open('post', 'http://geeku.work/wbu/u/upload.php', true);
+                    xhr.send(formData);
 
-                xhr.onreadystatechange = () => {
-                    if(xhr.readyState == 4) {
-                        if((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
-                            resolve(JSON.parse(xhr.responseText));
+                    xhr.onreadystatechange = () => {
+                        if(xhr.readyState == 4) {
+                            if((xhr.status >= 200 && xhr.status < 300) || xhr.status == 304) {
+                                resolve(JSON.parse(xhr.responseText));
+                            }
                         }
+                    };
+
+                }).then((data) => {
+
+                    if(data.status) {
+                        let className = $('#' + id + ' .img-cover', self.process).className,
+                            thumb = $('#' + id + ' .thumb', self.process),
+                            large = $('#' + id + ' .large', self.process),
+                            thumbLabel = $('#' + id + ' .thumb-label', self.process),
+                            largeLabel = $('#' + id + ' .large-label', self.process);
+
+                        $('#' + id + ' .img-cover', self.process).className =className.replace('loading', '');
+                        thumb.value = data.thumb;
+                        large.value = data.large;
+
+                        thumbLabel.addEventListener('click', () => {
+                            window.open(data.thumb);
+                        });
+
+                        largeLabel.addEventListener('click', () => {
+                            window.open(data.large);
+                        });
+
+                        //localStorage.setItem('list', self.process.innerHTML);
+
+                    } else {
+                        alert(data.msg);
                     }
-                };
+                });
+            }
 
-            }).then((data) => {
 
-                if(data.status) {
-                    let className = $('#' + id + ' .img-cover', self.process).className,
-                        thumb = $('#' + id + ' .thumb', self.process),
-                        large = $('#' + id + ' .large', self.process),
-                        thumbLabel = $('#' + id + ' .thumb-label', self.process),
-                        largeLabel = $('#' + id + ' .large-label', self.process);
-
-                    $('#' + id + ' .img-cover', self.process).className =className.replace('loading', '');
-                    thumb.value = data.thumb;
-                    large.value = data.large;
-
-                    thumbLabel.addEventListener('click', () => {
-                        window.open(data.thumb);
-                    });
-
-                    largeLabel.addEventListener('click', () => {
-                        window.open(data.large);
-                    });
-
-                    //localStorage.setItem('list', self.process.innerHTML);
-
-                } else {
-                    alert(data.msg);
-                }
-            });
         }
     }
 
